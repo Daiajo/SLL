@@ -1,20 +1,37 @@
 #include <stdio.h>
 #include <stdlib.h>	// malloc
 
-#define VERSION	"0.0.2"
+#define VERSION	"0.0.3"
+// 0.0.3 Get returns Head if no Check
+//	Added Tail, Kill, Destroy
 
 #include "SLL.h"
 
-void * SLL_New ( int Size )
+struct SLL_TOP
+{
+  void * Head ;
+  void * Tail ;
+  void ( * Kill ) ( void * Node ) ;
+} ;
+
+void * SLL_New ( int Size , void ( * Kill ) ( void * Node ) )
 {
   if ( Size < sizeof ( SLL_Next ) ) return NULL ;
-  void * New = malloc ( Size ) ;
+  SLL * New = malloc ( Size ) ;
   if ( ! New )
   {
     fprintf ( stderr , "SLL_New: %d malloc failed\n" , Size ) ;
     return NULL ;
   }
+  New -> Kill = Kill ;
   return New ;
+}
+
+void SLL_Kill ( SLL * Top , void * Old )
+{
+  SLL_Break ( Top , Old ) ;
+  Top -> Kill ( Old ) ;
+  free ( Old ) ;
 }
 
 void SLL_Link ( SLL * Top , void * New )
@@ -29,10 +46,16 @@ void SLL_Link ( SLL * Top , void * New )
 void * SLL_Get ( SLL * Top , int ( * Check ) ( void * Node , void * UserData ) , void * UserData )
 {
   if ( ! Top ) return NULL ;
-  if ( ! Check ) return NULL ;
+  if ( ! Check ) return Top -> Head ;
   for ( SLL_Next * This = Top -> Head ; This ; This = This -> Next )
     if ( Check ( This , UserData ) ) return This ;
   return NULL ;
+}
+
+void * SLL_Tail ( SLL * Top )
+{
+  if ( ! Top ) return NULL ;
+  return Top -> Tail ;
 }
 
 void SLL_Break ( SLL * Top , SLL_Next * Old )
@@ -52,6 +75,15 @@ void SLL_Break ( SLL * Top , SLL_Next * Old )
     }
     Last = This ;
   }
+}
+
+void SLL_Destroy ( SLL * Top )
+{
+  SLL_Next * This ;
+  for ( This = Top -> Head ; This ; This = This -> Next )
+    SLL_Kill ( Top , ( void * ) This ) ;
+  Top -> Head = NULL ;
+  Top -> Tail = NULL ;
 }
 
 void SLL_List ( SLL * Top , String Name , void ( * Print ) ( void * Data ) )
